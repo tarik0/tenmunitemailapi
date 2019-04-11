@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
 # -*- coding:UTF-8 -*-
 
+from threading import Thread
+from time import time, sleep
+from json import loads
+from bs4 import BeautifulSoup
+from requests import Session, get, post
 """tenminutemail.py: 10 dakikalık e-mail adresi oluşturucu."""
 
-__author__  = "Hichigo THT"
+__author__ = "Hichigo THT"
 __license__ = "GPL"
-__version__ = "1.0.1"
-__status__  = "Production"
-__date__    = "10.04.2019 Black Hole"
+__version__ = "1.0.2"
+__status__ = "Production"
+__date__ = "10.04.2019 Black Hole"
 
-from requests import Session, get, post
-from bs4 import BeautifulSoup
-from json import loads
-from time import time, sleep
-from threading import Thread
 
-__MAIL_URL__ = """https://www.minuteinbox.com/"""
-__MAIL_REFLESH_URL__ = """https://www.minuteinbox.com/index/refresh"""
+MAIL_URL = "https://www.minuteinbox.com/"
+MAIL_REFLESH_URL = "https://www.minuteinbox.com/index/refresh"
+
 
 class MailBox:
-    def __init__(self, proxy, reflesh_interval):
+    def __init__(self, proxy=None, reflesh_interval = 10):
         self.ses = Session()
         self.email = None
         self.mails = []
@@ -28,15 +29,13 @@ class MailBox:
         self.__lastcheckdate = int(round(time()))
         self.__mailthreadstatus = False
         self.date = int(round(time()))
-        if proxy != None:
-            self.proxy = proxy
-            self.ses.proxies = proxy
-            pass
-        pass
-    
-    def Connect(self):
+        self.proxy = proxy
+        self.ses.proxies = proxy
+
+
+    def connect(self):
         try:
-            res = self.ses.get(__MAIL_URL__)
+            res = self.ses.get(MAIL_URL)
             if (res.status_code != 200):
                 return {
                     "status": False,
@@ -54,7 +53,7 @@ class MailBox:
                 "Content-Type": "application/json; charset=utf8",
                 "Accept-Language": "tr-TR,tr;q=0.8,en-US;q=0.5,en;q=0.3",
                 "Accept-Encoding": "gzip, deflate, br",
-                "Referer": __MAIL_URL__,
+                "Referer": MAIL_URL,
                 "X-Requested-With": "XMLHttpRequest",
                 "Connection": "keep-alive",
                 "Pragma": "no-cache",
@@ -72,7 +71,7 @@ class MailBox:
                     "response": res,
                     "exception": None
                 }
-        
+
             return {
                 "status": True,
                 "tr_message": "Mail adresi alındı.",
@@ -80,7 +79,7 @@ class MailBox:
                 "response": res,
                 "exception": None
             }
-        
+
         except Exception as e:
             return {
                 "status": False,
@@ -90,37 +89,36 @@ class MailBox:
                 "exception": e
             }
 
-    def StartCheckThread(self):
+    def start_check_thread(self):
         self.__mailthreadstatus = True
-        self.checkmailthread = Thread(target=self.__CheckThread)
+        self.checkmailthread = Thread(target=self.checkthread)
         self.checkmailthread.start()
 
-    def __CheckThread(self):
+    def checkthread(self):
         while (self.__mailthreadstatus is True and (int(round(time())) - self.date <= 600)):
             if (int(round(time())) - self.__lastcheckdate >= self.reflesh_interval):
-                self.Check()
+                self.check()
                 sleep(self.reflesh_interval)
-    
-    def StopCheckThread(self):
+
+    def stop_check_thread(self):
         self.__mailthreadstatus = False
 
-    def Close(self):
-        self.StopCheckThread()
+    def close(self):
+        self.stop_check_thread()
         self.ses.close()
 
-    def Check(self):
+    def check(self):
         try:
-            if (int(round(time())) - self.date >= 600 ):
+            if (int(round(time())) - self.date >= 600):
                 return {
-                "status": False,
-                "tr_message": "Mail zaman aşımı.",
-                "eng_message": "Mail timeout achived.",
-                "response": None,
-                "exception": None
-            }
+                    "status": False,
+                    "tr_message": "Mail zaman aşımı.",
+                    "eng_message": "Mail timeout achived.",
+                    "response": None,
+                    "exception": None
+                }
 
-
-            res = self.ses.get(__MAIL_REFLESH_URL__)
+            res = self.ses.get(MAIL_REFLESH_URL)
             if (res.status_code != 200):
                 return {
                     "status": False,
@@ -129,7 +127,7 @@ class MailBox:
                     "response": res,
                     "exception": None
                 }
-            
+
             res.encoding = "utf-8-sig"
             data = res.json()
 
@@ -148,18 +146,18 @@ class MailBox:
                     if (oldmail["id"] == mail["id"]):
                         isExisting = True
                         break
-                
+
                 if (isExisting == False):
                     self.mails.append(maildata)
-            
+
             self.__lastcheckdate = int(round(time()))
             return {
-                    "status": True,
-                    "tr_message": "Mail listesi yenilendi.",
-                    "eng_message": "Mail list got refleshed.",
-                    "response": None,
-                    "exception": None
-                }
+                "status": True,
+                "tr_message": "Mail listesi yenilendi.",
+                "eng_message": "Mail list got refleshed.",
+                "response": None,
+                "exception": None
+            }
 
         except Exception as e:
             return {
