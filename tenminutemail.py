@@ -102,11 +102,11 @@ class MailBox:
                 sleep(self.reflesh_interval)
     
     def StopCheckThread(self):
-        if (self.__mailthreadstatus == False):
-            return False
-
         self.__mailthreadstatus = False
 
+    def Close(self):
+        self.StopCheckThread()
+        self.ses.close()
 
     def Check(self):
         try:
